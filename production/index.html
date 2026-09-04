@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="PuppetStrings — Explore how federal politicians are funded through FEC campaign finance data." />
+  <title>PuppetStrings — Follow the Money</title>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <!-- App styles & script -->
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ───── Ambient background blobs ───── -->
+  <div class="bg-blob blob-1"></div>
+  <div class="bg-blob blob-2"></div>
+  <div class="bg-blob blob-3"></div>
+
+  <!-- ───── Header ───── -->
+  <header id="app-header">
+    <div class="header-inner">
+      <div class="logo">
+        <span class="logo-icon">🎭</span>
+        <h1>PuppetStrings</h1>
+      </div>
+      <p class="tagline">Follow the money behind federal politicians</p>
+    </div>
+  </header>
+
+  <!-- ───── Search Section ───── -->
+  <main>
+    <section id="search-section">
+      <div class="search-box">
+        <div class="search-input-wrap">
+          <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+          </svg>
+          <input
+            type="text"
+            id="candidate-input"
+            placeholder="Search a politician — e.g. Alsobrooks, Cruz, Warren…"
+            autocomplete="off"
+          />
+          <button id="search-btn" type="button">Search</button>
+        </div>
+        <div id="search-suggestions" class="suggestions hidden"></div>
+      </div>
+    </section>
+
+    <!-- ───── Loading Spinner ───── -->
+    <div id="loader" class="hidden">
+      <div class="spinner"></div>
+      <p>Pulling FEC records…</p>
+    </div>
+
+    <!-- ───── Error Banner ───── -->
+    <div id="error-banner" class="hidden"></div>
+
+    <!-- ───── Results Dashboard ───── -->
+    <section id="dashboard" class="hidden">
+
+      <!-- Candidate Info Card -->
+      <div id="candidate-card" class="card card-info">
+        <div class="card-badge" id="party-badge"></div>
+        <h2 id="cand-name"></h2>
+        <div class="meta-row">
+          <span id="cand-office" class="meta-chip"></span>
+          <span id="cand-state" class="meta-chip"></span>
+          <span id="cand-party" class="meta-chip"></span>
+          <span id="cand-status" class="meta-chip"></span>
+        </div>
+        <div class="stat-grid">
+          <div class="stat">
+            <span class="stat-label">Total Receipts</span>
+            <span class="stat-value" id="stat-receipts">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Total Disbursements</span>
+            <span class="stat-value" id="stat-disbursements">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Cash on Hand</span>
+            <span class="stat-value" id="stat-cash">—</span>
+          </div>
+          <div class="stat">
+            <span class="stat-label">Debt</span>
+            <span class="stat-value" id="stat-debt">—</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-grid">
+
+        <div class="card card-chart">
+          <h3>Donation Size Breakdown</h3>
+          <p class="chart-subtitle">Small-dollar grassroots vs. large-dollar donors</p>
+          <canvas id="chart-size"></canvas>
+        </div>
+
+        <div class="card card-chart">
+          <h3>Contributions by State</h3>
+          <p class="chart-subtitle">Top 10 donor states</p>
+          <canvas id="chart-state"></canvas>
+        </div>
+
+        <div class="card card-chart">
+          <h3>Top Employers</h3>
+          <p class="chart-subtitle">Aggregated by donor employer</p>
+          <canvas id="chart-employer"></canvas>
+        </div>
+
+        <div class="card card-chart">
+          <h3>PAC Contributors</h3>
+          <p class="chart-subtitle">Committee / PAC donations</p>
+          <canvas id="chart-pac"></canvas>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <!-- ───── Footer ───── -->
+  <footer>
+    <p>Data from the <a href="https://api.open.fec.gov/developers/" target="_blank" rel="noopener">OpenFEC API</a> · Built by the PuppetStrings team</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
