@@ -5,7 +5,8 @@ flowchart TD
     C -->|One| D[Pie Chart with Donors]
     C -->|Two| E[Number of terms]
     C -->|Three| F[Time until re-election]
-```## Building an easier way to learn about Federal Politicians
+```
+## Building an easier way to learn about Federal Politicians
 
 ## Hypothesis
 
@@ -21,10 +22,3 @@ echo "API_KEY=your_key_here" > .env
 
 # 3. Run the full pipeline
 python main.py
-
-flowchart TD
-    A[Command Line] -->|Request| B(Candidate ID)
-    B --> C{PAC Donations, Amount Raised/Spent}
-    C -->|One| D[Pie Chart with Donors]
-    C -->|Two| E[Number of terms]
-    C -->|Three| F[Time until re-election]
