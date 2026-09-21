@@ -148,18 +148,21 @@ async function loadCandidate(candidateId) {
 
     // 3. Financial totals
     const totalsData = await fec(`/candidate/${candidateId}/totals/`);
-    const totals = totalsData.results[0] || {};
+    //const totals = totalsData.results[0] || {};
+    const totals = totalsData.results || {};
+
 
     // 4. Parallel data fetches
     const [sizeData, stateData, employerData, pacData] = await Promise.all([
-      fec("/schedules/schedule_a/by_size/", { committee_id: committeeId, cycle: 2024 }).catch(() => null),
-      fec("/schedules/schedule_a/by_state/", { committee_id: committeeId, cycle: 2024, sort: "-total", per_page: 10 }).catch(() => null),
-      fec("/schedules/schedule_a/by_employer/", { committee_id: committeeId, cycle: 2024, sort: "-total", per_page: 10 }).catch(() => null),
-      fec("/schedules/schedule_a/", { committee_id: committeeId, two_year_transaction_period: 2024, contributor_type: "C", sort: "-contribution_receipt_amount", per_page: 10 }).catch(() => null),
+      fec("/schedules/schedule_a/by_size/", { committee_id: committeeId}).catch(() => null),
+      fec("/schedules/schedule_a/by_state/", { committee_id: committeeId, sort: "-total",}).catch(() => null),
+      fec("/schedules/schedule_a/by_employer/", { committee_id: committeeId, sort: "-total"}).catch(() => null),
+      fec("/schedules/schedule_a/", { committee_id: committeeId, contributor_type: "committee", sort: "-contribution_receipt_amount"}).catch(() => null),
     ]);
 
     // Render everything
-    renderCandidateCard(cand, totals);
+    //renderCandidateCard(cand, totals);
+    renderCandidateCard(cand, totals);    
     renderSizeChart(sizeData);
     renderStateChart(stateData);
     renderEmployerChart(employerData);
@@ -192,10 +195,32 @@ function renderCandidateCard(cand, totals) {
   $("cand-party").textContent = cand.party_full || cand.party || "—";
   $("cand-status").textContent = cand.incumbent_challenge_full || "—";
 
-  $("stat-receipts").textContent = money(totals.receipts);
-  $("stat-disbursements").textContent = money(totals.disbursements);
-  $("stat-cash").textContent = money(totals.cash_on_hand_end_period);
-  $("stat-debt").textContent = money(totals.debts_owed_by_committee);
+  var receipts = 0
+  var disbursements = 0
+  var cash = 0
+  var debt = 0
+
+  //ensuring no duplicates in totals, seeemed to be a pretty common issue
+  const seen = new Set();
+
+
+  totals.forEach(year => {
+    const key = `${year.coverage_start_date}|${year.coverage_end_date}`;
+    if (seen.has(key)) return;
+    else{
+      receipts += year.receipts || 0
+      disbursements += year.disbursements || 0
+      cash += year.last_cash_on_hand_end_period || 0
+      debt += year.last_debts_owed_by_committee || 0
+      seen.add(key);
+    }
+
+  })
+
+  $("stat-receipts").textContent = money(receipts);
+  $("stat-disbursements").textContent = money(disbursements);
+  $("stat-cash").textContent = money(cash);
+  $("stat-debt").textContent = money(debt);
 
   // Color the badge by party
   const badge = $("party-badge");
@@ -218,15 +243,30 @@ const SIZE_LABELS = {
 function renderSizeChart(data) {
   const canvas = $("chart-size");
   if (!data || !data.results || !data.results.length) {
-    canvas.parentElement.querySelector("h3").textContent = "Donation Size Breakdown (no data)";
+    canvas.parentElement.querySelector("h3").textContent = "Donation Size Breakdown (no data available)";
     return;
   }
-  const results = data.results;
-  const labels = results.map(r => SIZE_LABELS[r.size] || `$${r.size}`);
-  const values = results.map(r => r.total || 0);
+
+  // Group by size
+  const grouped = {};
+  data.results.forEach(r => {
+    const size = r.size;
+    if (!grouped[size]) {
+      grouped[size] = { total: 0, count: 0 };
+    }
+    grouped[size].total += r.total || 0;
+    grouped[size].count += r.count || 0;
+  });
+
+  // Convert grouped object back into sorted arrays
+  const sizes = Object.keys(grouped).sort((a, b) => Number(a) - Number(b));
+
+  //const results = data.results;
+  const labels = sizes.map(size => SIZE_LABELS[size] || `$${size}`);
+  const values = sizes.map(size => grouped[size].total || 0);
 
   charts.size = new Chart(canvas, {
-    type: "doughnut",
+    type: "bar",
     data: {
       labels,
       datasets: [{
@@ -239,8 +279,9 @@ function renderSizeChart(data) {
     options: {
       responsive: true,
       plugins: {
-        legend: { position: "right", labels: { padding: 14, usePointStyle: true, pointStyle: "circle" } },
-        tooltip: { callbacks: { label: ctx => `${ctx.label}: ${money(ctx.raw)}` } },
+        legend: { display: false },
+        //legend: { position: "right", labels: { padding: 14, usePointStyle: true, pointStyle: "circle" } },
+        //tooltip: { callbacks: { label: ctx => `${ctx.label}: ${money(ctx.raw)}` } },
       },
     },
   });
@@ -249,7 +290,19 @@ function renderSizeChart(data) {
 function renderStateChart(data) {
   const canvas = $("chart-state");
   if (!data || !data.results || !data.results.length) return;
-  const results = data.results.slice(0, 10);
+
+  // Group by state
+  const grouped = {};
+  data.results.forEach(r => {
+    const state = r.state || "Unknown";
+    if (!grouped[state]) {
+      grouped[state] = { total: 0 };
+    }
+    grouped[state].total += r.total || 0;
+  })
+
+  // Convert grouped object back into sorted arrays
+  const results = Object.keys(grouped).map(state => ({ state, total: grouped[state].total })).slice(0,10).sort((a, b) => b.total - a.total);
   const labels = results.map(r => r.state);
   const values = results.map(r => r.total || 0);
 
@@ -283,7 +336,24 @@ function renderStateChart(data) {
 function renderEmployerChart(data) {
   const canvas = $("chart-employer");
   if (!data || !data.results || !data.results.length) return;
-  const results = data.results.filter(r => r.employer && r.employer !== "NONE" && r.employer !== "N/A").slice(0, 10);
+
+  const grouped = {};
+
+  data.results.forEach(r => {
+    const employer = r.employer || "Unknown";
+    if (!grouped[employer]){
+      grouped[employer] = { total : 0}
+    }
+    grouped[employer].total += r.total
+  })
+
+  //turning results into an array
+  const results = Object.entries(grouped)
+  .map(([employer, obj]) => ({ employer, total: obj.total }))
+  .filter(r => r.employer && r.employer !== "NONE" && r.employer !== "N/A")
+  .sort((a, b) => b.total - a.total)
+  .slice(0, 10);
+
   const labels = results.map(r => truncate(r.employer, 28));
   const values = results.map(r => r.total || 0);
 
@@ -317,8 +387,23 @@ function renderEmployerChart(data) {
 function renderPacChart(data) {
   const canvas = $("chart-pac");
   if (!data || !data.results || !data.results.length) return;
-  const results = data.results.slice(0, 10);
-  const labels = results.map(r => truncate(r.committee_name || r.contributor_name || "Unknown", 32));
+
+  const grouped = {};
+
+  data.results.forEach(r => {
+    const contributor_name = r.contributor_name || "Unknown";
+    if (!grouped[contributor_name]){
+      grouped[contributor_name] = { contributor_name, contribution_receipt_amount : 0}
+    }
+    grouped[contributor_name].contribution_receipt_amount += r.contribution_receipt_amount
+  })
+
+  const results = Object.keys(grouped)
+  .map(contributor_name => ({ contributor_name, contribution_receipt_amount: grouped[contributor_name].contribution_receipt_amount }))
+  .sort((a, b) => b.contribution_receipt_amount - a.contribution_receipt_amount)
+  .slice(0, 10);
+
+  const labels = results.map(r => truncate(r.contributor_name || "Unknown", 32));
   const values = results.map(r => r.contribution_receipt_amount || 0);
 
   charts.pac = new Chart(canvas, {
